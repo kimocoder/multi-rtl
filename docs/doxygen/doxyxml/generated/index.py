@@ -23,12 +23,10 @@ class DoxygenTypeSub(supermod.DoxygenType):
 
         results = []
         for compound in self.compound:
-            members = compound.find_members(details)
-            if members:
+            if members := compound.find_members(details):
                 results.append([compound, members])
-            else:
-                if details.match(compound):
-                    results.append([compound, []])
+            elif details.match(compound):
+                results.append([compound, []])
 
         return results
 
@@ -45,13 +43,7 @@ class CompoundTypeSub(supermod.CompoundType):
         Returns a list of all members which match details
         """
 
-        results = []
-
-        for member in self.member:
-            if details.match(member):
-                results.append(member)
-
-        return results
+        return [member for member in self.member if details.match(member)]
 
 supermod.CompoundType.subclass = CompoundTypeSub
 # end class CompoundTypeSub

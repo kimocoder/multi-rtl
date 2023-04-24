@@ -69,7 +69,7 @@ from doxyindex import DoxyIndex, DoxyFunction, DoxyParam, DoxyClass, DoxyFile, D
 def _test():
     import os
     this_dir = os.path.dirname(globals()['__file__'])
-    xml_path = this_dir + "/example/xml/"
+    xml_path = f"{this_dir}/example/xml/"
     di = DoxyIndex(xml_path)
     # Get the Aadvark class
     aad = di.get_member('Aadvark')

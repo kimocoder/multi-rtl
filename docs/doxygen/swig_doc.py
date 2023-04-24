@@ -41,7 +41,7 @@ def py_name(name):
 
 def make_name(name):
     bits = name.split('_')
-    return bits[0] + '_make_' + '_'.join(bits[1:])
+    return f'{bits[0]}_make_' + '_'.join(bits[1:])
 
 
 class Block(object):
@@ -103,12 +103,14 @@ def make_entry(obj, name=None, templ="{description}", description=None):
     if description is None:
         description = combine_descriptions(obj)
     docstring = templ.format(description=description)
-    if not docstring:
-        return ''
-    return entry_templ.format(
-        name=name,
-        docstring=docstring,
+    return (
+        entry_templ.format(
+            name=name,
+            docstring=docstring,
         )
+        if docstring
+        else ''
+    )
 
 
 def make_func_entry(func, name=None, description=None, params=None):
@@ -123,9 +125,8 @@ def make_func_entry(func, name=None, description=None, params=None):
     """
     if params is None:
         params = func.params
-    params = [prm.declname for prm in params]
-    if params:
-        sig = "Params: (%s)" % ", ".join(params)
+    if params := [prm.declname for prm in params]:
+        sig = f'Params: ({", ".join(params)})'
     else:
         sig = "Params: (NONE)"
     templ = "{description}\n\n" + sig
@@ -137,10 +138,9 @@ def make_class_entry(klass, description=None):
     """
     Create a class docstring for a swig interface file.
     """
-    output = []
-    output.append(make_entry(klass, description=description))
+    output = [make_entry(klass, description=description)]
     for func in klass.in_category(DoxyFunction):
-        name = klass.name() + '::' + func.name()
+        name = f'{klass.name()}::{func.name()}'
         output.append(make_func_entry(func, name=name))
     return "\n\n".join(output)
 
@@ -151,20 +151,16 @@ def make_block_entry(di, block):
     swig interface file.
     """
     descriptions = []
-    # Get the documentation associated with the class.
-    class_desc = combine_descriptions(block)
-    if class_desc:
+    if class_desc := combine_descriptions(block):
         descriptions.append(class_desc)
     # Get the documentation associated with the make function
     make_func = di.get_member(make_name(block.name()), DoxyFunction)
-    make_func_desc = combine_descriptions(make_func)
-    if make_func_desc:
+    if make_func_desc := combine_descriptions(make_func):
         descriptions.append(make_func_desc)
     # Get the documentation associated with the file
     try:
-        block_file = di.get_member(block.name() + ".h", DoxyFile)
-        file_desc = combine_descriptions(block_file)
-        if file_desc:
+        block_file = di.get_member(f"{block.name()}.h", DoxyFile)
+        if file_desc := combine_descriptions(block_file):
             descriptions.append(file_desc)
     except base.Base.NoSuchMember:
         # Don't worry if we can't find a matching file.
@@ -173,8 +169,7 @@ def make_block_entry(di, block):
     super_description = "\n\n".join(descriptions)
     # Associate the combined description with the class and
     # the make function.
-    output = []
-    output.append(make_class_entry(block, description=super_description))
+    output = [make_class_entry(block, description=super_description)]
     creator = block.get_member(block.name(), DoxyFunction)
     output.append(make_func_entry(make_func, description=super_description,
                                   params=creator.params))
@@ -203,7 +198,7 @@ def make_swig_interface_file(di, swigdocfilename, custom_output=None):
             make_funcs.add(make_func.name())
             output.append(make_block_entry(di, block))
         except block.ParsingError:
-            print('Parsing error for block %s' % block.name())
+            print(f'Parsing error for block {block.name()}')
 
     # Create docstrings for functions
     # Don't include the make functions since they have already been dealt with.
@@ -212,7 +207,7 @@ def make_swig_interface_file(di, swigdocfilename, custom_output=None):
         try:
             output.append(make_func_entry(f))
         except f.ParsingError:
-            print('Parsing error for function %s' % f.name())
+            print(f'Parsing error for function {f.name()}')
 
     # Create docstrings for classes
     block_names = [block.name() for block in blocks]
@@ -221,7 +216,7 @@ def make_swig_interface_file(di, swigdocfilename, custom_output=None):
         try:
             output.append(make_class_entry(k))
         except k.ParsingError:
-            print('Parsing error for class %s' % k.name())
+            print(f'Parsing error for class {k.name()}')
 
     # Docstrings are not created for anything that is not a function or a class.
     # If this excludes anything important please add it here.

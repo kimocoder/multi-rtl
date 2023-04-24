@@ -31,7 +31,7 @@ except ImportError, exp:
         def format_double(self, input_data, input_name=''):
             return '%e' % input_data
         def format_boolean(self, input_data, input_name=''):
-            return '%s' % input_data
+            return f'{input_data}'
 
 
 #
@@ -60,46 +60,34 @@ ExternalEncoding = 'ascii'
 #
 
 def showIndent(outfile, level):
-    for idx in range(level):
+    for _ in range(level):
         outfile.write('    ')
 
 def quote_xml(inStr):
-    s1 = (isinstance(inStr, basestring) and inStr or
-          '%s' % inStr)
+    s1 = isinstance(inStr, basestring) and inStr or f'{inStr}'
     s1 = s1.replace('&', '&amp;')
     s1 = s1.replace('<', '&lt;')
     s1 = s1.replace('>', '&gt;')
     return s1
 
 def quote_attrib(inStr):
-    s1 = (isinstance(inStr, basestring) and inStr or
-          '%s' % inStr)
+    s1 = isinstance(inStr, basestring) and inStr or f'{inStr}'
     s1 = s1.replace('&', '&amp;')
     s1 = s1.replace('<', '&lt;')
     s1 = s1.replace('>', '&gt;')
     if '"' in s1:
-        if "'" in s1:
-            s1 = '"%s"' % s1.replace('"', "&quot;")
-        else:
-            s1 = "'%s'" % s1
+        s1 = f""""{s1.replace('"', "&quot;")}\"""" if "'" in s1 else f"'{s1}'"
     else:
-        s1 = '"%s"' % s1
+        s1 = f'"{s1}"'
     return s1
 
 def quote_python(inStr):
     s1 = inStr
     if s1.find("'") == -1:
-        if s1.find('\n') == -1:
-            return "'%s'" % s1
-        else:
-            return "'''%s'''" % s1
-    else:
-        if s1.find('"') != -1:
-            s1 = s1.replace('"', '\\"')
-        if s1.find('\n') == -1:
-            return '"%s"' % s1
-        else:
-            return '"""%s"""' % s1
+        return f"'{s1}'" if s1.find('\n') == -1 else f"'''{s1}'''"
+    if s1.find('"') != -1:
+        s1 = s1.replace('"', '\\"')
+    return f'"{s1}"' if s1.find('\n') == -1 else f'"""{s1}"""'
 
 
 class MixedContainer:
@@ -139,28 +127,31 @@ class MixedContainer:
             self.value.export(outfile, level, namespace,name)
     def exportSimple(self, outfile, level, name):
         if self.content_type == MixedContainer.TypeString:
-            outfile.write('<%s>%s</%s>' % (self.name, self.value, self.name))
-        elif self.content_type == MixedContainer.TypeInteger or \
-                self.content_type == MixedContainer.TypeBoolean:
+            outfile.write(f'<{self.name}>{self.value}</{self.name}>')
+        elif self.content_type in [
+            MixedContainer.TypeInteger,
+            MixedContainer.TypeBoolean,
+        ]:
             outfile.write('<%s>%d</%s>' % (self.name, self.value, self.name))
-        elif self.content_type == MixedContainer.TypeFloat or \
-                self.content_type == MixedContainer.TypeDecimal:
+        elif self.content_type in [
+            MixedContainer.TypeFloat,
+            MixedContainer.TypeDecimal,
+        ]:
             outfile.write('<%s>%f</%s>' % (self.name, self.value, self.name))
         elif self.content_type == MixedContainer.TypeDouble:
             outfile.write('<%s>%g</%s>' % (self.name, self.value, self.name))
     def exportLiteral(self, outfile, level, name):
-        if self.category == MixedContainer.CategoryText:
+        if self.category in [
+            MixedContainer.CategoryText,
+            MixedContainer.CategorySimple,
+        ]:
             showIndent(outfile, level)
             outfile.write('MixedContainer(%d, %d, "%s", "%s"),\n' % \
-                (self.category, self.content_type, self.name, self.value))
-        elif self.category == MixedContainer.CategorySimple:
-            showIndent(outfile, level)
-            outfile.write('MixedContainer(%d, %d, "%s", "%s"),\n' % \
-                (self.category, self.content_type, self.name, self.value))
+                    (self.category, self.content_type, self.name, self.value))
         else:    # category == MixedContainer.CategoryComplex
             showIndent(outfile, level)
             outfile.write('MixedContainer(%d, %d, "%s",\n' % \
-                (self.category, self.content_type, self.name,))
+                    (self.category, self.content_type, self.name,))
             self.value.exportLiteral(outfile, level + 1)
             showIndent(outfile, level)
             outfile.write(')\n')
@@ -188,15 +179,12 @@ class DoxygenType(GeneratedsSuper):
     superclass = None
     def __init__(self, version=None, compound=None):
         self.version = version
-        if compound is None:
-            self.compound = []
-        else:
-            self.compound = compound
-    def factory(*args_, **kwargs_):
+        self.compound = [] if compound is None else compound
+    def factory(self, **kwargs_):
         if DoxygenType.subclass:
-            return DoxygenType.subclass(*args_, **kwargs_)
+            return DoxygenType.subclass(*self, **kwargs_)
         else:
-            return DoxygenType(*args_, **kwargs_)
+            return DoxygenType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_compound(self): return self.compound
     def set_compound(self, compound): self.compound = compound
@@ -206,7 +194,7 @@ class DoxygenType(GeneratedsSuper):
     def set_version(self, version): self.version = version
     def export(self, outfile, level, namespace_='', name_='DoxygenType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s %s' % (namespace_, name_, namespacedef_, ))
+        outfile.write(f'<{namespace_}{name_} {namespacedef_}')
         self.exportAttributes(outfile, level, namespace_, name_='DoxygenType')
         if self.hasContent_():
             outfile.write('>\n')
@@ -221,12 +209,7 @@ class DoxygenType(GeneratedsSuper):
         for compound_ in self.compound:
             compound_.export(outfile, level, namespace_, name_='compound')
     def hasContent_(self):
-        if (
-            self.compound is not None
-            ):
-            return True
-        else:
-            return False
+        return self.compound is not None
     def exportLiteral(self, outfile, level, name_='DoxygenType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, name_)
@@ -274,15 +257,12 @@ class CompoundType(GeneratedsSuper):
         self.kind = kind
         self.refid = refid
         self.name = name
-        if member is None:
-            self.member = []
-        else:
-            self.member = member
-    def factory(*args_, **kwargs_):
+        self.member = [] if member is None else member
+    def factory(self, **kwargs_):
         if CompoundType.subclass:
-            return CompoundType.subclass(*args_, **kwargs_)
+            return CompoundType.subclass(*self, **kwargs_)
         else:
-            return CompoundType(*args_, **kwargs_)
+            return CompoundType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_name(self): return self.name
     def set_name(self, name): self.name = name
@@ -296,7 +276,7 @@ class CompoundType(GeneratedsSuper):
     def set_refid(self, refid): self.refid = refid
     def export(self, outfile, level, namespace_='', name_='CompoundType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s %s' % (namespace_, name_, namespacedef_, ))
+        outfile.write(f'<{namespace_}{name_} {namespacedef_}')
         self.exportAttributes(outfile, level, namespace_, name_='CompoundType')
         if self.hasContent_():
             outfile.write('>\n')
@@ -306,7 +286,7 @@ class CompoundType(GeneratedsSuper):
         else:
             outfile.write(' />\n')
     def exportAttributes(self, outfile, level, namespace_='', name_='CompoundType'):
-        outfile.write(' kind=%s' % (quote_attrib(self.kind), ))
+        outfile.write(f' kind={quote_attrib(self.kind)}')
         outfile.write(' refid=%s' % (self.format_string(quote_attrib(self.refid).encode(ExternalEncoding), input_name='refid'), ))
     def exportChildren(self, outfile, level, namespace_='', name_='CompoundType'):
         if self.name is not None:
@@ -315,13 +295,7 @@ class CompoundType(GeneratedsSuper):
         for member_ in self.member:
             member_.export(outfile, level, namespace_, name_='member')
     def hasContent_(self):
-        if (
-            self.name is not None or
-            self.member is not None
-            ):
-            return True
-        else:
-            return False
+        return self.name is not None or self.member is not None
     def exportLiteral(self, outfile, level, name_='CompoundType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, name_)
@@ -361,17 +335,17 @@ class CompoundType(GeneratedsSuper):
         if attrs.get('refid'):
             self.refid = attrs.get('refid').value
     def buildChildren(self, child_, nodeName_):
-        if child_.nodeType == Node.ELEMENT_NODE and \
-            nodeName_ == 'name':
-            name_ = ''
-            for text__content_ in child_.childNodes:
-                name_ += text__content_.nodeValue
-            self.name = name_
-        elif child_.nodeType == Node.ELEMENT_NODE and \
-            nodeName_ == 'member':
-            obj_ = MemberType.factory()
-            obj_.build(child_)
-            self.member.append(obj_)
+        if child_.nodeType == Node.ELEMENT_NODE:
+            if nodeName_ == 'name':
+                name_ = ''.join(
+                    text__content_.nodeValue
+                    for text__content_ in child_.childNodes
+                )
+                self.name = name_
+            elif nodeName_ == 'member':
+                obj_ = MemberType.factory()
+                obj_.build(child_)
+                self.member.append(obj_)
 # end class CompoundType
 
 
@@ -382,11 +356,11 @@ class MemberType(GeneratedsSuper):
         self.kind = kind
         self.refid = refid
         self.name = name
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if MemberType.subclass:
-            return MemberType.subclass(*args_, **kwargs_)
+            return MemberType.subclass(*self, **kwargs_)
         else:
-            return MemberType(*args_, **kwargs_)
+            return MemberType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_name(self): return self.name
     def set_name(self, name): self.name = name
@@ -396,7 +370,7 @@ class MemberType(GeneratedsSuper):
     def set_refid(self, refid): self.refid = refid
     def export(self, outfile, level, namespace_='', name_='MemberType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s %s' % (namespace_, name_, namespacedef_, ))
+        outfile.write(f'<{namespace_}{name_} {namespacedef_}')
         self.exportAttributes(outfile, level, namespace_, name_='MemberType')
         if self.hasContent_():
             outfile.write('>\n')
@@ -406,19 +380,14 @@ class MemberType(GeneratedsSuper):
         else:
             outfile.write(' />\n')
     def exportAttributes(self, outfile, level, namespace_='', name_='MemberType'):
-        outfile.write(' kind=%s' % (quote_attrib(self.kind), ))
+        outfile.write(f' kind={quote_attrib(self.kind)}')
         outfile.write(' refid=%s' % (self.format_string(quote_attrib(self.refid).encode(ExternalEncoding), input_name='refid'), ))
     def exportChildren(self, outfile, level, namespace_='', name_='MemberType'):
         if self.name is not None:
             showIndent(outfile, level)
             outfile.write('<%sname>%s</%sname>\n' % (namespace_, self.format_string(quote_xml(self.name).encode(ExternalEncoding), input_name='name'), namespace_))
     def hasContent_(self):
-        if (
-            self.name is not None
-            ):
-            return True
-        else:
-            return False
+        return self.name is not None
     def exportLiteral(self, outfile, level, name_='MemberType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, name_)
@@ -447,10 +416,10 @@ class MemberType(GeneratedsSuper):
             self.refid = attrs.get('refid').value
     def buildChildren(self, child_, nodeName_):
         if child_.nodeType == Node.ELEMENT_NODE and \
-            nodeName_ == 'name':
-            name_ = ''
-            for text__content_ in child_.childNodes:
-                name_ += text__content_.nodeValue
+                nodeName_ == 'name':
+            name_ = ''.join(
+                text__content_.nodeValue for text__content_ in child_.childNodes
+            )
             self.name = name_
 # end class MemberType
 

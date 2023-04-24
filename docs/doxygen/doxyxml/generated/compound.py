@@ -36,8 +36,7 @@ class compounddefTypeSub(supermod.compounddefType):
             return self
 
         for sectiondef in self.sectiondef:
-            result = sectiondef.find(details)
-            if result:
+            if result := sectiondef.find(details):
                 return result
 
 
@@ -103,11 +102,14 @@ class sectiondefTypeSub(supermod.sectiondefType):
 
     def find(self, details):
 
-        for memberdef in self.memberdef:
-            if memberdef.id == details.refid:
-                return memberdef
-
-        return None
+        return next(
+            (
+                memberdef
+                for memberdef in self.memberdef
+                if memberdef.id == details.refid
+            ),
+            None,
+        )
 
 
 supermod.sectiondefType.subclass = sectiondefTypeSub

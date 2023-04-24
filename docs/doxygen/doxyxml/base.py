@@ -94,8 +94,7 @@ class Base(object):
         for cls in self.mem_classes:
             if cls.can_parse(mem):
                 return cls
-        raise StandardError(("Did not find a class for object '%s'." \
-                                 % (mem.get_name())))
+        raise StandardError(f"Did not find a class for object '{mem.get_name()}'.")
 
     def convert_mem(self, mem):
         try:
@@ -129,10 +128,7 @@ class Base(object):
         if cat not in self._dict_members:
             new_dict = {}
             for mem in self.in_category(cat):
-                if mem.name() not in new_dict:
-                    new_dict[mem.name()] = mem
-                else:
-                    new_dict[mem.name()] = self.Duplicate
+                new_dict[mem.name()] = mem if mem.name() not in new_dict else self.Duplicate
             self._dict_members[cat] = new_dict
         return self._dict_members[cat]
 
@@ -153,11 +149,9 @@ class Base(object):
         rest = '::'.join(bits[1:])
         member = self._get_dict_members(cat).get(first, self.NoSuchMember)
         # Raise any errors that are returned.
-        if member in set([self.NoSuchMember, self.Duplicate]):
+        if member in {self.NoSuchMember, self.Duplicate}:
             raise member()
-        if rest:
-            return member.get_member(rest, cat=cat)
-        return member
+        return member.get_member(rest, cat=cat) if rest else member
 
     def has_member(self, name, cat=None):
         try:
@@ -190,11 +184,11 @@ class Base(object):
                 self._members.append(converted)
 
     def retrieve_data(self):
-        filename = os.path.join(self._xml_path, self.refid + '.xml')
+        filename = os.path.join(self._xml_path, f'{self.refid}.xml')
         try:
             self._retrieved_data = compound.parse(filename)
         except ExpatError:
-            print('Error in xml in file %s' % filename)
+            print(f'Error in xml in file {filename}')
             self._error = True
             self._retrieved_data = None
 

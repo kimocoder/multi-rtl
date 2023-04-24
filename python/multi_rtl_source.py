@@ -36,21 +36,12 @@ def xcorr(X,Y,maxlag):
     N = max(len(X),len(Y))
     N_nextpow2 = ceil(log(N + maxlag,2))
     M = 2**N_nextpow2
-    if len(X) < M:
-        postpad_X = int(M-len(X)-maxlag)
-    else:
-        postpad_X = 0
-
-    if len(Y) < M:
-        postpad_Y = int(M-len(Y))
-    else:
-        postpad_Y = 0
-        
+    postpad_X = int(M-len(X)-maxlag) if len(X) < M else 0
+    postpad_Y = int(M-len(Y)) if len(Y) < M else 0
     pre  = fft( pad(X, (maxlag,postpad_X), 'constant', constant_values=(0, 0)) )
     post = fft( pad(Y, (0,postpad_Y), 'constant', constant_values=(0, 0)) )
     cor  = ifft( pre * conj(post) )
-    R = cor[0:2*maxlag]
-    return R
+    return cor[:2*maxlag]
 
 class vector_sink_fullness_notifier(gr.feval):
     """
@@ -117,22 +108,20 @@ class multi_rtl_source(gr.hier_block2):
         self.sync_center_freq = sync_center_freq
 
         #blocks
-        self.phase_amplitude_corrections = {}        
+        self.phase_amplitude_corrections = {}
         self.phase_and_amplitude_correctors = {}
         self.rtlsdr_sources = {}
         self.delay_blocks = {}
         self.vsinks = {}
-        
-        self.vsink_notifier = vector_sink_fullness_notifier(self) #object providing callback function for notifying the multi_rtl that 
-                                                                  #vsinks are full
 
+        self.vsink_notifier = vector_sink_fullness_notifier(self) #object providing callback function for notifying the multi_rtl that 
         for chan in xrange(0,self.num_channels):
             if (chan <= len(rtlsdr_id_strings)) and (rtlsdr_id_strings is not ""):
-                rtl_args= "numchan=" + str(1) + " " + "rtl=" + rtlsdr_id_strings[chan]
-                self.rtlsdr_sources[chan] = osmosdr.source( args=rtl_args) 
+                rtl_args = f"numchan=1 rtl={rtlsdr_id_strings[chan]}"
+                self.rtlsdr_sources[chan] = osmosdr.source( args=rtl_args)
             else:
-                rtl_args= "numchan=" + str(1) + " " + "rtl=" + str(chan)            
-                self.rtlsdr_sources[chan] = osmosdr.source( args="numchan=" + str(1) )
+                rtl_args = f"numchan=1 rtl={str(chan)}"
+                self.rtlsdr_sources[chan] = osmosdr.source(args='numchan=1')
 
             self.rtlsdr_sources[chan].set_sample_rate(self.sample_rate)
             self.rtlsdr_sources[chan].set_freq_corr(self.ppm, 0)
@@ -146,14 +135,16 @@ class multi_rtl_source(gr.hier_block2):
         self.set_freq_corr(self.ppm)
         self.apply_synchronization_settings()
 
-        self.vsink = multi_rtl.vector_sink_cn(1, True, int(self.sync_samples), int(num_channels), self.vsink_notifier)
-             
+        self.vsink = multi_rtl.vector_sink_cn(
+            1, True, self.sync_samples, int(num_channels), self.vsink_notifier
+        )
+
         for chan in xrange(0,self.num_channels):          
             self.delay_blocks[chan] = blocks.delay(gr.sizeof_gr_complex*1, 0)
             self.phase_amplitude_corrections[chan]=1.0
             self.phase_and_amplitude_correctors[chan] = blocks.multiply_const_vcc((self.phase_amplitude_corrections[chan], ))
 
-            
+
             #connect blocks
             self.connect((self.rtlsdr_sources[chan], 0), (self.vsink, chan))
             self.connect((self.rtlsdr_sources[chan], 0), (self.delay_blocks[chan], 0))
@@ -280,10 +271,7 @@ class multi_rtl_source(gr.hier_block2):
         self.if_gains[chan] = gain
 
     def get_if_gain(self, chan=0):
-        if chan in if_gains:
-            return self.if_gains[chan]
-        else:
-            return None
+        return self.if_gains[chan] if chan in if_gains else None
 
 #synchronization options
     def set_sync_center_freq(self, freq): #b. istotna

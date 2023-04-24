@@ -160,16 +160,16 @@ import os.path
 
 if __name__ == '__main__':
   import sys
+  title = 'multi-rtl'
+  prefix = 'multi_rtl'
   for file in sys.argv[1:]:
     head, tail = os.path.split(file)
 
-    if tail.startswith('multi_rtl_source'):
-      title = 'multi-rtl'
-      prefix = 'multi_rtl'        
-    else: raise Exception, 'file %s has wrong syntax!'%tail
+    if not tail.startswith('multi_rtl_source'):
+      raise (Exception, f'file {tail} has wrong syntax!')
 
     params = ''.join([parse_tmpl(PARAMS_TMPL, n=n) for n in range(max_num_channels)])
-    
+
     open(file, 'w').write(parse_tmpl(MAIN_TMPL,
       max_nchan=max_num_channels,
       params=params,

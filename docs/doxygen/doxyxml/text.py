@@ -33,9 +33,7 @@ def is_string(txt):
     return False
 
 def description(obj):
-    if obj is None:
-        return None
-    return description_bit(obj).strip()
+    return None if obj is None else description_bit(obj).strip()
 
 def description_bit(obj):
     if hasattr(obj, 'content'):
